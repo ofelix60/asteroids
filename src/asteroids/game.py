@@ -13,10 +13,8 @@ from asteroids.entities.asteroid import Asteroid
 from asteroids.entities.asteroidfield import AsteroidField
 from asteroids.entities.player import Player
 from asteroids.entities.shot import Shot
+from asteroids.hud.lives import Lives
 from asteroids.logger import log_event, log_state
-
-# from lives import Lives
-from src.asteroids.hud.lives import Lives
 
 
 class Game:
@@ -51,7 +49,7 @@ class Game:
 
         self.life_icons = [
             Lives(20 + i * LIFE_SPACING, 50, LIVES_RADIUS)
-            for i, item in enumerate(range(PLAYER_LIVES))
+            for i in range(PLAYER_LIVES)
         ]
 
         self.ship = Player(self.x, self.y, PLAYER_RADIUS)
@@ -84,8 +82,11 @@ class Game:
         self.updatable.update(dt)
 
     def check_collisions(self) -> None:
+        # The player can only die once per frame, however many asteroids overlap it.
+        player_down = False
         for asteroid in self.asteroids:
-            self.player_hit(asteroid)
+            if not player_down:
+                player_down = self.player_hit(asteroid)
             for shot in self.shots:
                 if not asteroid.alive():
                     break
@@ -109,19 +110,18 @@ class Game:
         for icon in self.life_icons[: self.lives]:
             icon.draw(self.screen)
         self.screen.blit(score_surface, (10, 10))
-        # self.lives_group.draw(self.screen)
         pygame.display.flip()
 
-    def player_hit(self, asteroid) -> None:
-        invulnerable = self.ship.is_invulnerable
-        hit = asteroid.collides_with(self.ship) and not invulnerable
-        if hit:
-            log_event("player_died", lives_remaining=self.lives)
-            if self.lives > 1:
-                self.lives -= 1
-                self.ship.position = pygame.Vector2(self.x, self.y)
-                self.ship.rotation = 0.0
-                self.ship.invuln_timer = PLAYER_INVULN_SECONDS
-            elif self.lives == 1:
-                self.lives = 0
-                self.running = False
+    def player_hit(self, asteroid) -> bool:
+        if self.ship.is_invulnerable or not asteroid.collides_with(self.ship):
+            return False
+        log_event("player_died", lives_remaining=self.lives)
+        if self.lives > 1:
+            self.lives -= 1
+            self.ship.position = pygame.Vector2(self.x, self.y)
+            self.ship.rotation = 0.0
+            self.ship.invuln_timer = PLAYER_INVULN_SECONDS
+        else:
+            self.lives = 0
+            self.running = False
+        return True

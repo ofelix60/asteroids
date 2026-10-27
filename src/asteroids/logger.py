@@ -32,12 +32,15 @@ _start_time = datetime.now()
 def log_state(scope: dict[str, Any]) -> None:
     global _frame_count, _state_log_initialized
 
-    # Stop logging after `_MAX_SECONDS` seconds
+    # Count every frame, including ones we don't snapshot — log_event stamps its
+    # events with this, so it has to keep advancing for the whole session.
+    _frame_count += 1
+
+    # Stop snapshotting state after `_MAX_SECONDS` seconds
     if _frame_count > _FPS * _MAX_SECONDS:
         return
 
     # Take a snapshot approx. once per second
-    _frame_count += 1
     if _frame_count % _FPS != 0:
         return
 
